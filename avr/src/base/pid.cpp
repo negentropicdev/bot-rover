@@ -1,34 +1,28 @@
 #include "pid.h"
 
 #include <stdlib.h>
+#include <math.h>
 
-PID::PID() {
-    setGains(0.0, 0.0, 0.0);
-    _reset = true;
-    _min = 0.0;
-    _max = 100.0;
-}
+#include <stdio.h>
+#define FF "%c%d.%03d"
+#define FV(fv) (fv < 0 ? '-' : ' '), abs((int)(fv)), abs((int)(fv * 1000) % 1000)
 
-PID::PID(const float &Rp, const float &Ti, const float &Td) {
-    setGains(Rp, Ti, Td);
-    _reset = true;
-    _min = 0.0;
-    _max = 100.0;
-}
-
-void PID::setGains(const float &Rp, const float &Ti, const float &Td) {
+PID::PID(volatile float *Rp, volatile float *Ti, volatile float *Td, volatile float *min, volatile float *max, volatile float *pv) {
     _Rp = Rp;
     _Ti = Ti;
     _Td = Td;
-}
-
-void PID::setRange(const float &min, const float &max) {
     _min = min;
     _max = max;
+    _pv = pv;
+    _reset = true;
 }
 
-float PID::run(const float &value, const float &setpoint, const float dT, const bool reset) {
-    float error = setpoint - value;
+float PID::run(const float &setpoint, const float &dT, const bool reset) {
+    //printf(" sp:"FF" pv:"FF, FV(setpoint), FV(*_pv));
+
+    float error = setpoint - *_pv;
+
+    //printf(" e:"FF, FV(error));
 
     bool r = reset || _reset;
     _reset = false;
@@ -36,7 +30,7 @@ float PID::run(const float &value, const float &setpoint, const float dT, const 
     //Calc P
     bool inRange = true;
 
-    float normalizedP = error / _Rp;
+    float normalizedP = error / *_Rp;
     if (normalizedP > 1) {
         normalizedP = 1;
         inRange = false;
@@ -45,21 +39,23 @@ float PID::run(const float &value, const float &setpoint, const float dT, const 
         inRange = false;
     }
 
-    if (_max > abs(_min)) {
-        _outP = normalizedP * _max;
-    } else {
-        _outP = normalizedP * _min;
-    }
+    //printf(" n:"FF, FV(normalizedP));
+
+    //printf(" "FF"/"FF, FV(*_min), FV(*_max));
+
+    _outP = normalizedP * *_max;
 
     float output = _outP;
 
+    //printf(" P:"FF, FV(_outP));
+
     //Calc I
-    if (_Ti != 0 && !r && inRange) {
-        float i = dT / _Ti * _Rp * error;
+    if (*_Ti != 0 && !r && inRange) {
+        float i = (dT / (*_Ti)) * (*_Rp) * error;
         _sum += i;
 
-        float maxSum = _max - _outP;
-        float minSum = _min - _outP;
+        float maxSum = *_max - _outP;
+        float minSum = *_min - _outP;
 
         if (_sum > maxSum) _sum = maxSum;
         else if (_sum < minSum) _sum = minSum;
@@ -71,19 +67,25 @@ float PID::run(const float &value, const float &setpoint, const float dT, const 
 
     _outI = _sum;
 
+    //printf(" i:"FF, FV(_outI));
+
     //Calc D
-    if (_Td != 0 && inRange) {
-        _outD = (_last - value) / (dT * _Td);
+    if (*_Td != 0 && inRange) {
+        _outD = (_last - *_pv) / (dT * *_Td);
         output += _outD;
     } else {
         _outD = 0;
     }
+
+    //printf(" d:"FF" o:"FF, FV(_outD), FV(output));
     
-    _last = value;
+    _last = *_pv;
+
+    //printf("\n");
     
     //clamp
-    if (output > _max) output = _max;
-    else if (output < _min) output = _min;
+    if (output > *_max) output = *_max;
+    else if (output < *_min) output = *_min;
 
     return output;
 }

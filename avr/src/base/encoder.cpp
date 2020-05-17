@@ -44,7 +44,7 @@ void initEncoders() {
     SREG = oldSreg;
 }
 
-void getEncoders(int16_t & A, int16_t & B) {
+void getEncoders(volatile int16_t & A, volatile int16_t & B) {
     uint8_t oldSreg = SREG;
     cli();
     A = _enc[0];

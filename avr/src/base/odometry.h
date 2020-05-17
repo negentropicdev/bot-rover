@@ -1,32 +1,35 @@
 #ifndef BASE_H_
 #define BASE_H_
 
+#include <stdint.h>
+#include <math.h>
+
+template <typename T> bool isNeg(const T &val);
+
+template <typename T> int sgn(T val);
+
+void normalizeRadians(float *heading);
+
 //includes functions for velocity control and odometry
-
-//yummmm
-#define PI 3.1415926536
-#define TWO_PI (PI * 2.0)
-
-#include "pid.h"
 
 class Odometry {
 public:
-    Odometry();
+    Odometry(const float &width, const float &tpu);
     
-    void setWidth(const float &width);
-    void setTicksPerUnit(const float &tpu);
+    void update(const volatile int16_t &encL, const volatile int16_t &encR, const float &dT);
     
-    void update(const long &encL, const long &encR, const float &dT);
-    
-    const void getPose(float *x, float *y, float *a);
-    const void getVelocity(float *velocity, float *turn);
-    const void getWheelVel(float *left, float *right);
+    const void getPose(volatile float *x, volatile float *y, volatile float *a);
+    const void getVelocity(volatile float *velocity, volatile float *turn);
+    const void getWheelVel(volatile float *left, volatile float *right);
+
+    void setWidth(float width);
+    void setTicksPerUnit(float tpu);
     
 private:
     
     //odometry variables
     float _ticksPerUnit, _width;
-    long _lastEncL, _lastEncR;
+    int16_t _lastEncL, _lastEncR;
     float _x, _y, _a;
     
     //measured values
