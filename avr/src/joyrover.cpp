@@ -2,7 +2,6 @@
 #include "system/avr_i2c.h"
 #include "system/avr_timer.h"
 
-#include "base/pid.h"
 #include "base/encoder.h"
 #include "base/odometry.h"
 #include "base/wheel.h"
@@ -11,7 +10,6 @@
 #include <avr/interrupt.h>
 #include <stdlib.h>
 #include <math.h>
-#include <string.h>
 
 #define DEBUG
 //#define DEBUG_I2C
@@ -400,14 +398,11 @@ int main() {
     float targL = 0;
     float targR = 0;
 
-    PID pidL (&velP, &velI, &velD, &velMin, &velMax, &velL);
-    PID pidR (&velP, &velI, &velD, &velMin, &velMax, &velR);
-
     unsigned long odomPeriod = 10;
     unsigned long curMillis = millis();
     unsigned long lastOdom = curMillis;
 
-    unsigned long outPeriod = 50;
+    unsigned long outPeriod = 200;
     unsigned long lastOut = curMillis + 5;
     float outDT = outPeriod / 1000.0;
 
@@ -435,39 +430,25 @@ int main() {
         if (curMillis - lastOut >= outPeriod) {
             lastOut += outPeriod;
 
-            bool reset = TFLAG(F_RESET);
-            bool run =   TFLAG(F_RUN);
-            bool brake = TFLAG(F_BRAKE);
-            bool coast = TFLAG(F_COAST);
+            targL = cmdDrive - cmdTurn;
+            targR = cmdDrive + cmdTurn;
 
-            if (run) {
-                if (!(brake || coast)) {
-                    float turn = 0.5 * width * cmdTurn;
-                    targL = cmdDrive - turn;
-                    targR = cmdDrive + turn;
-                }
-            } else {
-                targL = 0;
-                targR = 0;
-            }
+            if (targL < -1) targL = -1;
+            else if (targL > 1) targL = 1;
 
-            reset = reset || !run;
+            if (targR < -1) targR = -1;
+            else if (targR > 1) targR = 1;
 
-            outL = (int16_t)pidL.run(targL, outDT, reset, 'L');
-            outR = (int16_t)pidR.run(targR, outDT, reset, 'R');
+            outL = (int)(targL * MOTOR_MAX);
+            outR = (int)(targR * MOTOR_MAX);
 
-            if (run) {
-                wheelL.drive(outL);
-                wheelR.drive(outR);
-            } else if (brake) {
-                wheelL.brake();
-                wheelR.brake();
-            } else {
-                wheelL.coast();
-                wheelR.coast();
-            }
+            if (abs(outL) < outDeadband) outL = 0;
+            if (abs(outR) < outDeadband) outR = 0;
 
-            //printf(FF" "FF" "FF" "FF" "FF" "FF" %d %d %02x\n", FV(cmdDrive), FV(cmdTurn), FV(targL), FV(targR), FV(velL), FV(velR), outL, outR, flags);
+            wheelL.drive(outL);
+            wheelR.drive(outR);
+
+            //printf(FF" "FF" "FF" "FF" %d %d\n", FV(cmdDrive), FV(cmdTurn), FV(targL), FV(targR), outL, outR);
         }
 
         #ifdef DEBUG

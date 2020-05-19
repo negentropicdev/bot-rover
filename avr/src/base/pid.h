@@ -9,7 +9,7 @@ public:
     void setGains(volatile float *Rp, volatile float *Ti, volatile float *Td);
     void setRange(volatile float *min, volatile float *max);
     
-    float run(const float &setpoint, const float &dT, const bool reset = false);
+    float run(const float &setpoint, const float &dT, const bool reset, char l);
     
     void reset();
     

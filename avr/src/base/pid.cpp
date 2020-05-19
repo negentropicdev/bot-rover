@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <math.h>
 
-#include <stdio.h>
+//#include <stdio.h>
 #define FF "%c%d.%03d"
 #define FV(fv) (fv < 0 ? '-' : ' '), abs((int)(fv)), abs((int)(fv * 1000) % 1000)
 
@@ -17,7 +17,9 @@ PID::PID(volatile float *Rp, volatile float *Ti, volatile float *Td, volatile fl
     _reset = true;
 }
 
-float PID::run(const float &setpoint, const float &dT, const bool reset) {
+float PID::run(const float &setpoint, const float &dT, const bool reset, char l) {
+
+    //putchar(l);
     //printf(" sp:"FF" pv:"FF, FV(setpoint), FV(*_pv));
 
     float error = setpoint - *_pv;
@@ -40,8 +42,6 @@ float PID::run(const float &setpoint, const float &dT, const bool reset) {
     }
 
     //printf(" n:"FF, FV(normalizedP));
-
-    //printf(" "FF"/"FF, FV(*_min), FV(*_max));
 
     _outP = normalizedP * *_max;
 
@@ -81,7 +81,7 @@ float PID::run(const float &setpoint, const float &dT, const bool reset) {
     
     _last = *_pv;
 
-    //printf("\n");
+    //putchar('\n');
     
     //clamp
     if (output > *_max) output = *_max;

@@ -184,7 +184,7 @@ void AVR_I2C::_interrupt() {
             #endif
 
             if (_slave_mode == REGISTER && _register_write_cb != 0) {
-                ack = _register_read_cb(_slave_reg);
+                ack = _register_read_cb();
                 if (_slave_auto_inc) _slave_reg++;
             } else if (_slave_mode == RAW && _raw_write_cb != 0) {
                 ack = _raw_read_cb();
@@ -208,7 +208,7 @@ void AVR_I2C::_interrupt() {
         //data transmitted, ACK received
         case TW_ST_DATA_ACK:
             if (_slave_mode == REGISTER && _register_write_cb != 0) {
-                ack = _register_read_cb(_slave_reg);
+                ack = _register_read_cb();
                 if (_slave_auto_inc) _slave_reg++;
             } else if (_slave_mode == RAW && _raw_write_cb != 0) {
                 ack = _raw_read_cb();
@@ -253,6 +253,10 @@ void AVR_I2C::_interrupt() {
             //mark whether expecting a register
             _slave_set_reg = _slave_mode == REGISTER;
 
+            #ifdef DEBUG_I2C_SER
+                printf("%d", _slave_mode);
+            #endif
+
             //Continue bus ops
             TWCR = (1 << TWINT) | (1 << TWIE) | (1 << TWEN) | (1 << TWEA);
             break;
@@ -277,11 +281,10 @@ void AVR_I2C::_interrupt() {
                 #endif
 
                 _slave_set_reg = false;
-                _slave_reg = TWDR;
-                ack = true;
+                ack = _set_register_cb(TWDR);
             } else {
                 if (_slave_mode == REGISTER && _register_write_cb != 0) {
-                    ack = _register_write_cb(_slave_reg);
+                    ack = _register_write_cb();
                     if (_slave_auto_inc) ++_slave_reg;
                 } else if (_slave_mode == RAW && _raw_write_cb != 0) {
                     ack = _raw_write_cb();
@@ -305,7 +308,7 @@ void AVR_I2C::_interrupt() {
         //data received, NACK returned
         case TW_SR_DATA_NACK:
             if (_slave_mode == REGISTER && _register_write_cb != 0) {
-                _register_write_cb(_slave_reg);
+                _register_write_cb();
                 if (_slave_auto_inc) ++_slave_reg;
             } else if (_slave_mode == RAW && _raw_write_cb != 0) {
                 _raw_write_cb();
@@ -389,9 +392,10 @@ void AVR_I2C::initMaster(unsigned long rate, i2c_master_complete cb) {
     _master_cb = cb;
 }
 
-void AVR_I2C::initSlave(uint8_t address, i2c_register_read rcb, i2c_register_write wcb, bool genCall) {
+void AVR_I2C::initSlave(uint8_t address, i2c_set_register sr, i2c_register_read rcb, i2c_register_write wcb, bool genCall) {
     _register_read_cb = rcb;
     _register_write_cb = wcb;
+    _set_register_cb = sr;
 
     _slave_mode = REGISTER;
 

@@ -18,21 +18,27 @@ typedef void (*i2c_master_complete)(uint8_t status);
  * Signals back to app that a slave read has begun. The function
  * called should put the value to write in TWDR.
  * 
- * @param register The register number wanting to be read.
- * 
  * @return Whether to return an ack (true = more data available) or nack.
  */
-typedef bool (*i2c_register_read)(uint8_t register);
+typedef bool (*i2c_register_read)();
 
 /**
  * Signals back to app that a slave write has occured. The function
  * should read the value from TWDR
  * 
- * @param register The register number wanting to be read.
- * 
  * @return Whether to return an ack (true = can receive more data) or nack.
  */
-typedef bool (*i2c_register_write)(uint8_t register);
+typedef bool (*i2c_register_write)();
+
+/**
+ * Tells the application that a register has been specified by a master.
+ * 
+ * @param reg The register addressed by the master
+ * 
+ * @return Whether the register is valid or not. Returning false results
+ * in responding with a NACK to the master.
+ */
+typedef bool (*i2c_set_register)(uint8_t reg);
 
 /**
  * Callback for a master requesting a byte when slave is in RAW mode.
@@ -105,6 +111,8 @@ public:
      * @param address The 7 bit address this device will respond to. This
      *  should be specified in the lower 7 bits (less than 128, 0x80).
      * 
+     * @param sr The callback when a master specifies a register to read/write
+     * 
      * @param rcb The read callback that is used to determine what value to send
      * 
      * @param wcb The write callback that is used to update local variables
@@ -112,7 +120,7 @@ public:
      * 
      * @param genCall Whether the device will respond to general call (0x00) address.
      */
-    void initSlave(uint8_t address, i2c_register_read rcb, i2c_register_write wcb, bool genCall);
+    void initSlave(uint8_t address, i2c_set_register sr, i2c_register_read rcb, i2c_register_write wcb, bool genCall);
 
     /** Initializes the instance as a slave to respond to reads and writes
      * from other masters.
@@ -214,6 +222,7 @@ private:
     SlaveMode _slave_mode;
 
     /** Callbacks when addressed as a slave and we're in register mode. */
+    i2c_set_register _set_register_cb;
     i2c_register_read _register_read_cb;
     i2c_register_write _register_write_cb;
 
