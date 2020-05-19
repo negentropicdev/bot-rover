@@ -1,0 +1,24 @@
+This is a non-recursive make build system that supports large and deeply nested
+source trees. Adding sub directories to the build is trivial and requires a
+minimal make file. With a mindful layout of the source files, make is able to be
+run from any sub directory within the source tree and the build system will only
+compile the sources found in and below the current working directory.
+
+The build system also has verbosity control on the build. Add "V=1" to the
+make command to get a full output of the commands being called to build.
+
+There are a few potential drawbacks such as not being able to have different
+files in the source tree with the same name.
+
+***AVR - ATmega
+
+AVR support has been added. In order to configure support for AVR uncomment the
+include avr.mk in the common.mk file. Ensure that all variables in avr.mk are
+set properly for your system.
+
+To specify an AVR compiled file the target name should have a '.hex' extension.
+All targets with a '.hex' extension will also have a rule called 'up-*.hex' that
+uses avrdude to upload to the chip. For instance, for a target named blink.hex a
+rule will also exist for up-blink.hex and calling 'make up-blink.hex' will
+result in blink.hex being compiled and the hex file being uploaded using the
+AVRDUDE_* variables in the avr.mk file.
