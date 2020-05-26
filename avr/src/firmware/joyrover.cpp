@@ -39,8 +39,8 @@ volatile uint8_t flags;      // 4 - 12
 volatile float velP;         // 5 - 13, 14, 15, 16
 volatile float velI;         // 6 - 17, 18, 19, 20
 volatile float velD;         // 7 - 21, 22, 23, 24
-volatile float velMin;       // 8 - 25, 26, 27, 28
-volatile float velMax;       // 9 - 29, 30, 31, 32
+volatile float outMin;       // 8 - 25, 26, 27, 28
+volatile float outMax;       // 9 - 29, 30, 31, 32
 volatile float poseX;        //10 - 33, 34, 35, 36
 volatile float poseY;        //11 - 37, 38, 39, 40
 volatile float poseA;        //12 - 41, 42, 43, 44
@@ -154,11 +154,11 @@ bool i2c_set_reg(uint8_t reg) {
             break;
 
         case 8:
-            floatbuf.val = velMin;
+            floatbuf.val = outMin;
             break;
 
         case 9:
-            floatbuf.val = velMax;
+            floatbuf.val = outMax;
             break;
 
         case 10:
@@ -297,11 +297,11 @@ bool i2c_write_cb() {
                 break;
 
             case 8:
-                velMin = floatbuf.val;
+                outMin = floatbuf.val;
                 break;
 
             case 9:
-                velMax = floatbuf.val;
+                outMax = floatbuf.val;
                 break;
 
             case 10:
@@ -375,8 +375,8 @@ void init() {
 
     width = 0.17596;
     ticksPerUnit = 15498.331;
-    velMin = -1 * 0x7fff;
-    velMax = 0x7fff;
+    outMin = -1 * 0x7fff;
+    outMax = 0x7fff;
     outDeadband = 3000;
 
     velP = 0.8;

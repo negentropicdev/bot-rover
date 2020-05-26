@@ -1,11 +1,11 @@
-#include "system/avr_serial.h"
-#include "system/avr_i2c.h"
-#include "system/avr_timer.h"
+#include "../system/avr_serial.h"
+#include "../system/avr_i2c.h"
+#include "../system/avr_timer.h"
 
-#include "base/pid.h"
-#include "base/encoder.h"
-#include "base/odometry.h"
-#include "base/wheel.h"
+#include "../base/pid.h"
+#include "../base/encoder.h"
+#include "../base/odometry.h"
+#include "../base/wheel.h"
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -33,6 +33,30 @@ void printDec(float f) {
 
 #define TFLAG(flag) (flags & (1 << flag))
 
+#define R_ENCA          0
+#define R_ENCB          1
+#define R_TICKSPERUNIT  2
+#define R_WIDTH         3
+#define R_FLAGS         4
+#define R_VELP          5
+#define R_VELI          6
+#define R_VELD          7
+#define R_OUTMIN        8
+#define R_OUTMAX        9
+#define R_POSEX         10
+#define R_POSEY         11
+#define R_POSEA         12
+#define R_CMDDRIVE      13
+#define R_CMDTURN       14
+#define R_VELOCITY      15
+#define R_TURN          16
+#define R_VELL          17
+#define R_VELR          18
+#define R_RUN           19
+#define R_OUTL          20
+#define R_OUTR          21
+#define R_OUTDEADBAND   22
+
 volatile int16_t encA;       // 0 - 0, 1
 volatile int16_t encB;       // 1 - 2, 3
 volatile float ticksPerUnit; // 2 - 4, 5, 6, 7
@@ -41,8 +65,8 @@ volatile uint8_t flags;      // 4 - 12
 volatile float velP;         // 5 - 13, 14, 15, 16
 volatile float velI;         // 6 - 17, 18, 19, 20
 volatile float velD;         // 7 - 21, 22, 23, 24
-volatile float velMin;       // 8 - 25, 26, 27, 28
-volatile float velMax;       // 9 - 29, 30, 31, 32
+volatile float outMin;       // 8 - 25, 26, 27, 28
+volatile float outMax;       // 9 - 29, 30, 31, 32
 volatile float poseX;        //10 - 33, 34, 35, 36
 volatile float poseY;        //11 - 37, 38, 39, 40
 volatile float poseA;        //12 - 41, 42, 43, 44
@@ -56,7 +80,6 @@ volatile uint8_t run;        //19 - 69
 volatile int16_t outL;       //20 - 70, 71
 volatile int16_t outR;       //21 - 72, 73
 volatile int16_t outDeadband;//22 - 74, 75
-
 
 #define R_F32 1
 #define R_I16 2
@@ -89,6 +112,32 @@ uint8_t dataType[R_COUNT] = {
     R_I16,
     R_I16,
     R_I16
+};
+
+volatile bool updateReg[R_COUNT] = {
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
 };
 
 static volatile union {
@@ -156,11 +205,11 @@ bool i2c_set_reg(uint8_t reg) {
             break;
 
         case 8:
-            floatbuf.val = velMin;
+            floatbuf.val = outMin;
             break;
 
         case 9:
-            floatbuf.val = velMax;
+            floatbuf.val = outMax;
             break;
 
         case 10:
@@ -299,11 +348,11 @@ bool i2c_write_cb() {
                 break;
 
             case 8:
-                velMin = floatbuf.val;
+                outMin = floatbuf.val;
                 break;
 
             case 9:
-                velMax = floatbuf.val;
+                outMax = floatbuf.val;
                 break;
 
             case 10:
@@ -367,7 +416,7 @@ bool i2c_write_cb() {
 
 void init() {
     initTimer();
-    initSerial(57600);
+    initSerial(115200);
 
     initEncoders();
     initMotors();
@@ -377,13 +426,13 @@ void init() {
 
     width = 0.17596;
     ticksPerUnit = 15498.331;
-    velMin = -1 * 0x7fff;
-    velMax = 0x7fff;
-    outDeadband = 3000;
+    outMin = -1 * 0x7fff;
+    outMax = 0x7fff;
+    outDeadband = 0x2000;
 
-    velP = 0.8;
-    velI = 0.01;
-    velD = 0;
+    velP = 2;
+    velI = 0.00001;
+    velD = 0.01;
 
     poseX = 0;
     poseY = 0;
@@ -400,28 +449,34 @@ int main() {
     float targL = 0;
     float targR = 0;
 
-    PID pidL (&velP, &velI, &velD, &velMin, &velMax, &velL);
-    PID pidR (&velP, &velI, &velD, &velMin, &velMax, &velR);
+    float leftVel = 0;
+    float rightVel = 0;
 
     unsigned long odomPeriod = 10;
     unsigned long curMillis = millis();
     unsigned long lastOdom = curMillis;
 
     unsigned long outPeriod = 50;
-    unsigned long lastOut = curMillis + 5;
+    unsigned long lastOut = curMillis - 5;
+    float dT = odomPeriod / 1000.0;
     float outDT = outPeriod / 1000.0;
 
-    float dT = odomPeriod / 1000.0;
+    PID pidL (velP, velI, velD, outMin, outMax, outDT);
+    PID pidR (velP, velI, velD, outMin, outMax, outDT);
 
     #ifdef DEBUG
         unsigned long statusPeriod = 500;
         unsigned long lastStatus = curMillis;
     #endif
 
+    bool proc;
+
     while(1) {
+        proc = false;
         curMillis = millis();
         if (curMillis - lastOdom >= odomPeriod) {
             lastOdom += odomPeriod;
+            proc = true;
 
             //with current wiring A is right and B is left
             getEncoders(encB, encA);
@@ -434,6 +489,7 @@ int main() {
 
         if (curMillis - lastOut >= outPeriod) {
             lastOut += outPeriod;
+            proc = true;
 
             bool reset = TFLAG(F_RESET);
             bool run =   TFLAG(F_RUN);
@@ -453,8 +509,11 @@ int main() {
 
             reset = reset || !run;
 
-            outL = (int16_t)pidL.run(targL, outDT, reset, 'L');
-            outR = (int16_t)pidR.run(targR, outDT, reset, 'R');
+            leftVel = velL;
+            rightVel = velR;
+
+            outL = (int16_t)pidL.run(leftVel, targL, reset, 'L');
+            outR = (int16_t)pidR.run(rightVel, targR, reset, 'R');
 
             if (run) {
                 wheelL.drive(outL);
@@ -467,7 +526,30 @@ int main() {
                 wheelR.coast();
             }
 
-            //printf(FF" "FF" "FF" "FF" "FF" "FF" %d %d %02x\n", FV(cmdDrive), FV(cmdTurn), FV(targL), FV(targR), FV(velL), FV(velR), outL, outR, flags);
+            printf(FF" "FF" "FF" "FF" "FF" "FF" %d %d %02x\n", FV(cmdDrive), FV(cmdTurn), FV(targL), FV(targR), FV(velL), FV(velR), outL, outR, flags);
+        }
+
+        if (!proc) {
+            if (updateReg[R_VELP]) {
+                //putchar('P');
+                updateReg[R_VELP] = false;
+                pidL.setP(velP);
+                pidR.setP(velP);
+            }
+
+            if (updateReg[R_VELI]) {
+                //putchar('I');
+                updateReg[R_VELI] = false;
+                pidL.setI(velI);
+                pidR.setI(velI);
+            }
+            
+            if (updateReg[R_VELD]) {
+                //putchar('D');
+                updateReg[R_VELD] = false;
+                pidL.setD(velD);
+                pidR.setD(velD);
+            }
         }
 
         #ifdef DEBUG

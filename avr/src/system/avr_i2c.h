@@ -3,9 +3,20 @@
 
 #include <stdint.h>
 
-/**
- * @file i2c.h
- */
+typedef enum {FLOAT, U16, I16, U8} I2CRegisterType;
+
+typedef union {
+    float f32;
+    uint16_t u16;
+    int16_t i16;
+    uint8_t buf[4];
+} I2CBuffer;
+
+typedef struct {
+    I2CRegisterType type;
+    I2CBuffer data;
+    bool update;
+} I2CRegister;
 
 /**
  * Signals back to app that a master operation has completed.

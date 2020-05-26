@@ -59,6 +59,22 @@ unsigned long micros() {
     return (millis() * 1000) + (TCNT0 * 4) ;
 }
 
+void delay_us(unsigned int us)
+{
+    // for a one-microsecond delay, simply return.  the overhead
+    // of the function call yields a delay of approximately 1 1/8 us.
+    if (us <= 4)
+        return;
+    
+    us -= 2;
+
+    // busy wait
+    __asm__ __volatile__ (
+            "1: sbiw %0,1" "\n\t" // 2 cycles
+            "brne 1b" : "=w" (us) : "0" (us) // 2 cycles
+    );
+}
+
 void initTimer() {
     TCCR0A |= (1<<WGM01) | (1<<WGM00);
     TCCR0B |= (1<<CS01) | (1<<CS00);

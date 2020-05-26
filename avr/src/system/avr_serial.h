@@ -5,4 +5,8 @@
 
 void initSerial(long baud);
 
+void printDec(const float &val);
+void printDec(float *val);
+void printDec(volatile float *val);
+
 #endif //SERIAL_H_

@@ -3,36 +3,51 @@
 #include <stdlib.h>
 #include <math.h>
 
-//#include <stdio.h>
-#define FF "%c%d.%03d"
-#define FV(fv) (fv < 0 ? '-' : ' '), abs((int)(fv)), abs((int)(fv * 1000) % 1000)
+//#define DEBUG_PID
 
-PID::PID(volatile float *Rp, volatile float *Ti, volatile float *Td, volatile float *min, volatile float *max, volatile float *pv) {
+#ifdef DEBUG_PID
+    #include <stdio.h>
+    #include "../system/avr_serial.h"
+#endif
+
+PID::PID(float Rp, float Ti, float Td, float min, float max, float dT) {
     _Rp = Rp;
     _Ti = Ti;
     _Td = Td;
     _min = min;
     _max = max;
-    _pv = pv;
+    _dT = dT;
     _reset = true;
 }
 
-float PID::run(const float &setpoint, const float &dT, const bool reset, char l) {
+float PID::run(const float &pv, const float &setpoint, const bool reset, char l) {
 
-    //putchar(l);
-    //printf(" sp:"FF" pv:"FF, FV(setpoint), FV(*_pv));
+    #ifdef DEBUG_PID
+        putchar(l);
+        printf(" sp:");
+        printDec(setpoint);
+        printf(" pv:");
+        printDec(pv);
+    #endif
 
-    float error = setpoint - *_pv;
+    float error = setpoint - pv;
 
-    //printf(" e:"FF, FV(error));
+    #ifdef DEBUG_PID
+        printf(" e:");
+        printDec(error);
+    #endif
 
     bool r = reset || _reset;
     _reset = false;
+
+    #ifdef DEBUG_PID
+        putchar(r ? 'r' : ' ');
+    #endif
     
     //Calc P
     bool inRange = true;
 
-    float normalizedP = error / *_Rp;
+    float normalizedP = error / _Rp;
     if (normalizedP > 1) {
         normalizedP = 1;
         inRange = false;
@@ -41,21 +56,27 @@ float PID::run(const float &setpoint, const float &dT, const bool reset, char l)
         inRange = false;
     }
 
-    //printf(" n:"FF, FV(normalizedP));
+    #ifdef DEBUG_PID
+        printf(" n:");
+        printDec(normalizedP);
+    #endif
 
-    _outP = normalizedP * *_max;
+    _outP = normalizedP * _max;
 
     float output = _outP;
 
-    //printf(" P:"FF, FV(_outP));
+    #ifdef DEBUG_PID
+        printf(" P:");
+        printDec(_outP);
+    #endif
 
     //Calc I
-    if (*_Ti != 0 && !r && inRange) {
-        float i = (dT / (*_Ti)) * (*_Rp) * error;
+    if (_Ti != 0 && !r && inRange) {
+        float i = (_dT / (_Ti)) * (_Rp) * error;
         _sum += i;
 
-        float maxSum = *_max - _outP;
-        float minSum = *_min - _outP;
+        float maxSum = _max - _outP;
+        float minSum = _min - _outP;
 
         if (_sum > maxSum) _sum = maxSum;
         else if (_sum < minSum) _sum = minSum;
@@ -67,27 +88,49 @@ float PID::run(const float &setpoint, const float &dT, const bool reset, char l)
 
     _outI = _sum;
 
-    //printf(" i:"FF, FV(_outI));
+    #ifdef DEBUG_PID
+        printf(" i:");
+        printDec(_outI);
+    #endif
 
     //Calc D
-    if (*_Td != 0 && inRange) {
-        _outD = (_last - *_pv) / (dT * *_Td);
+    if (_Td != 0 && inRange) {
+        _outD = (_last - pv) / (_dT * _Td);
         output += _outD;
     } else {
         _outD = 0;
     }
 
-    //printf(" d:"FF" o:"FF, FV(_outD), FV(output));
+    #ifdef DEBUG_PID
+        printf(" d:");
+        printDec(_outD);
+        printf(" o:");
+        printDec(output);
+    #endif
     
-    _last = *_pv;
+    _last = pv;
 
-    //putchar('\n');
+    #ifdef DEBUG_PID
+        putchar('\n');
+    #endif
     
     //clamp
-    if (output > *_max) output = *_max;
-    else if (output < *_min) output = *_min;
+    if (output > _max) output = _max;
+    else if (output < _min) output = _min;
 
     return output;
+}
+
+void PID::setP(float p) {
+    _Rp = p;
+}
+
+void PID::setI(float i) {
+    _Ti = i;
+}
+
+void PID::setD(float d) {
+    _Td = d;
 }
 
 void PID::reset() {

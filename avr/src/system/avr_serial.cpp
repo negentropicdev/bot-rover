@@ -4,6 +4,9 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
+#include <math.h>
+#include <stdlib.h>
+
 //#include <stdint.h>
 
 CircularBuffer _rx(true);
@@ -68,4 +71,28 @@ void initSerial(long baud) {
     UCSR0B |= (1<<TXEN0);
     UCSR0B |= (1<<RXCIE0);
     UCSR0B &= ~(1<<UDRIE0);
+}
+
+void printDec(const float &val) {
+    if (isnan(val)) {
+        printf("NaN");
+    } else {
+        printf("%c%d.%03d", (val < 0 ? '-' : ' '), abs((int)val), abs((int)(val * 1000) % 1000));
+    }
+}
+
+void printDec(const float *val) {
+    if (isnan(*val)) {
+        printf("NaN");
+    } else {
+        printf("%c%d.%03d", (val < 0 ? '-' : ' '), abs((int)*val), abs((int)(*val * 1000) % 1000));
+    }
+}
+
+void printDec(volatile float *val) {
+    if (isnan(*val)) {
+        printf("NaN");
+    } else {
+        printf("%c%d.%03d", (val < 0 ? '-' : ' '), abs((int)*val), abs((int)(*val * 1000) % 1000));
+    }
 }

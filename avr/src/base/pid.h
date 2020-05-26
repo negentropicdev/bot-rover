@@ -3,25 +3,26 @@
 
 class PID {
 public:
-    PID();
-    PID(volatile float *Rp, volatile float *Ti, volatile float *Td, volatile float *min, volatile float *max, volatile float *pv);
+    PID(float Rp, float Ti, float Td, float min, float max, float dT);
     
-    void setGains(volatile float *Rp, volatile float *Ti, volatile float *Td);
-    void setRange(volatile float *min, volatile float *max);
+    void setGains(float Rp, float Ti, float Td);
+    void setRange(float min, float max);
     
-    float run(const float &setpoint, const float &dT, const bool reset, char l);
+    float run(const float &pv, const float &setpoint, const bool reset, char l);
+
+    void setP(float p);
+    void setI(float i);
+    void setD(float d);
     
     void reset();
     
 private:
-    volatile float *_Rp;
-    volatile float *_Ti;
-    volatile float *_Td;
+    float _Rp;
+    float _Ti;
+    float _Td;
     
-    volatile float *_min;
-    volatile float *_max;
-
-    volatile float *_pv;
+    float _min;
+    float _max;
     
     float _sum;
 
@@ -32,6 +33,8 @@ private:
     float _outP;
     float _outI;
     float _outD;
+
+    float _dT;
 };
 
 #endif //PID_H_
