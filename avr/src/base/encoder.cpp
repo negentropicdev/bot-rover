@@ -25,9 +25,9 @@ ISR(INT1_vect) {
     b = (PIND & (1<<5)) > 0;
     
     if (a == b) {
-        _enc[1]++;
-    } else {
         _enc[1]--;
+    } else {
+        _enc[1]++;
     }
 }
 

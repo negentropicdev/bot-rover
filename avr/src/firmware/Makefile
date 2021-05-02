@@ -19,3 +19,9 @@ pidtest.hex: system.a base.a
 sonar.hex: system.a dht.o hcsr04.o
 
 sonartest.hex: system.a hcsr04.o dht.o
+
+enc_test.hex: system.a base.a
+
+odom_test.hex: system.a base.a
+
+pid_test.hex: system.a base.a

@@ -44,8 +44,8 @@ void Odometry::update(const volatile int16_t &encL, const volatile int16_t &encR
     _lastEncL = encL;
     _lastEncR = encR;
     
-    float distL = diffL / _ticksPerUnit;
-    float distR = diffR / _ticksPerUnit;
+    float distL = (float)diffL / _ticksPerUnit;
+    float distR = (float)diffR / _ticksPerUnit;
     
     _velL = distL / dT;
     _velR = distR / dT;

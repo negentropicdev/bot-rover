@@ -27,6 +27,31 @@ SonarDef sd[8] = {
     SONAR(B, 2)
 };
 
+I2CRegister registers[22] = {
+    {U8, false, {.u8 = (6 + 16 + 32)}}, //Config
+    {U8, false, {.u8 = 0}},             //RunMode
+    {U8, false, {.u8 = 60}},            //SonarPeriod mS
+    {U8, false, {.u8 = 30}},            //DHTPeriod (mS * 100 + 2000)
+    {FLOAT, false, {.f32 = 0}},         //Temp
+    {FLOAT, false, {.f32 = 0}},         //Humidity
+    {FLOAT, false, {.f32 = 0}},         //Sonar 1
+    {FLOAT, false, {.f32 = 0}},         //Sonar 2
+    {FLOAT, false, {.f32 = 0}},         //Sonar 3
+    {FLOAT, false, {.f32 = 0}},         //Sonar 4
+    {FLOAT, false, {.f32 = 0}},         //Sonar 5
+    {FLOAT, false, {.f32 = 0}},         //Sonar 6
+    {FLOAT, false, {.f32 = 0}},         //Sonar 7
+    {FLOAT, false, {.f32 = 0}},         //Sonar 8
+    {FLOAT, false, {.f32 = 0}},         //Sonar 9
+    {FLOAT, false, {.f32 = 0}},         //Sonar 10
+    {FLOAT, false, {.f32 = 0}},         //Sonar 11
+    {FLOAT, false, {.f32 = 0}},         //Sonar 12
+    {FLOAT, false, {.f32 = 0}},         //Sonar 13
+    {FLOAT, false, {.f32 = 0}},         //Sonar 14
+    {FLOAT, false, {.f32 = 0}},         //Sonar 15
+    {FLOAT, false, {.f32 = 0}},         //Sonar 16
+};
+
 bool i2c_set_reg(uint8_t reg) {
         return true;
 }
@@ -54,8 +79,8 @@ int main() {
 
     DHT dht(&PORTD, &DDRD, &PIND, 2);
 
-    unsigned long echo_us[8];
-    uint16_t range_cm[8];
+    unsigned long echo_us[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    float range_cm[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
     HCSR04 sonars[8] = {
         HCSR04(sd[0]),
@@ -70,57 +95,60 @@ int main() {
 
     unsigned long curMillis = millis();
 
-    unsigned long dhtPeriod = 1000;
+    unsigned long dhtPeriod = 5000;
     unsigned long lastDht = curMillis;
+
+    unsigned long rangePeriod = 60;
+    unsigned long lastRange = curMillis - 5;
 
     #ifdef DEBUG
         unsigned long statusPeriod = 500;
         unsigned long lastStatus = curMillis;
     #endif
+    
+    float temp = 20;
+    float humidity = 50;
+    float scale = 0.017207; // Speed of sound (cm/uS) at 20C and 50% hum
 
-    bool proc;
+    uint8_t rangeI = 0;
+    uint8_t numSonar = 6;
 
     while(1) {
-        proc = false;
         curMillis = millis();
 
         if (curMillis - lastDht >= dhtPeriod) {
             lastDht += dhtPeriod;
-            proc = true;
 
-            dht.read();
+            int8_t res = dht.read();
 
-            float t = dht.getTemp();
-            float h = dht.getHumidity();
+            if (res == DHT_OK) {
+                temp = dht.getTemp();
+                humidity = dht.getHumidity();
+                
+                scale = (331.4 + (0.606 * temp) + (0.0124 * humidity)) / 20000.0;
+            }
 
             //printDec(t);
             //printf("C  ");
             //printDec(h);
             //printf("%%\n");
-            
-            float scale = (331.4 + (0.606 * t) + (0.0124 * h)) / 20000.0;
 
             //printDec(scale);
-
-            for (uint8_t i = 0; i < 1; ++i) {
-                echo_us[i] = sonars[i].range();
-            }
-
-            for (uint8_t i = 0; i < 1; ++i) {
-                range_cm[i] = echo_us[i] * scale;
-                printf("%d: %d ", i, range_cm[i]);
-            }
-            printf("\n\n");
         }
 
-        if (!proc) {
-            //update from I2C volatiles
-        }
+        if (curMillis - lastRange >= rangePeriod) {
+            lastRange += rangePeriod;
 
-        #ifdef DEBUG
-            if (curMillis - lastStatus >= statusPeriod) {
-                lastStatus = curMillis; //Don't need this to be exactly on period
+            echo_us[rangeI] = sonars[rangeI].range();
+            range_cm[rangeI] = echo_us[rangeI] * scale * 2.375;
+            printf("%d: ", rangeI);
+            printDec(range_cm[rangeI]);
+            putchar(' ');
+
+            if (++rangeI == numSonar) {
+                putchar('\n');
+                rangeI = 0;
             }
-        #endif
+        }
     }
 }

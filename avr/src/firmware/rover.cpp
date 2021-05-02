@@ -19,7 +19,7 @@
 #define FF "%c%d.%03d"
 #define FV(fv) (fv < 0 ? '-' : ' '), abs((int)(fv)), abs((int)(fv * 1000) % 1000)
 
-Odometry odom (0.17596, 15498.331);
+Odometry odom (0.15, 825.0);
 
 void printDec(float f) {
     printf(FF, FV(f));
@@ -80,13 +80,14 @@ volatile uint8_t run;        //19 - 69
 volatile int16_t outL;       //20 - 70, 71
 volatile int16_t outR;       //21 - 72, 73
 volatile int16_t outDeadband;//22 - 74, 75
+volatile float velF;         //23 - 76, 77, 78, 79
 
 #define R_F32 1
 #define R_I16 2
 #define R_U8  3
 
-#define R_COUNT 23
-uint8_t dataLen[R_COUNT] =     {2, 2, 4, 4, 1,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4, 1, 2, 2, 2};
+#define R_COUNT 24
+uint8_t dataLen[R_COUNT] =     {2, 2, 4, 4, 1, 4, 4, 4,  4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 2, 2, 2, 4};
 
 uint8_t dataType[R_COUNT] = {
     R_I16,
@@ -111,10 +112,12 @@ uint8_t dataType[R_COUNT] = {
     R_U8,
     R_I16,
     R_I16,
-    R_I16
+    R_I16,
+    R_F32
 };
 
 volatile bool updateReg[R_COUNT] = {
+    false,
     false,
     false,
     false,
@@ -263,6 +266,10 @@ bool i2c_set_reg(uint8_t reg) {
         case 22:
             intbuf.val = outDeadband;
             break;
+        
+        case 23:
+            floatbuf.val = velF;
+            break;
     }
 
     return true;
@@ -406,6 +413,10 @@ bool i2c_write_cb() {
             case 22:
                 outDeadband = intbuf.val;
                 break;
+
+            case 23:
+                velF = floatbuf.val;
+                break;
         }
 
         i2c_set_reg(i2c_reg + 1);
@@ -430,9 +441,10 @@ void init() {
     outMax = 0x7fff;
     outDeadband = 0x2000;
 
-    velP = 2;
+    velF = 40000;
+    velP = 0.6;
     velI = 0.00001;
-    velD = 0.01;
+    velD = 0.0007;
 
     poseX = 0;
     poseY = 0;
@@ -452,17 +464,20 @@ int main() {
     float leftVel = 0;
     float rightVel = 0;
 
-    unsigned long odomPeriod = 10;
+    unsigned long odomPeriod = 100;
     unsigned long curMillis = millis();
     unsigned long lastOdom = curMillis;
 
-    unsigned long outPeriod = 50;
+    unsigned long outPeriod = 100;
     unsigned long lastOut = curMillis - 5;
     float dT = odomPeriod / 1000.0;
     float outDT = outPeriod / 1000.0;
 
     PID pidL (velP, velI, velD, outMin, outMax, outDT);
+    pidL.setF(velF);
+
     PID pidR (velP, velI, velD, outMin, outMax, outDT);
+    pidR.setF(velF);
 
     #ifdef DEBUG
         unsigned long statusPeriod = 500;
@@ -478,8 +493,7 @@ int main() {
             lastOdom += odomPeriod;
             proc = true;
 
-            //with current wiring A is right and B is left
-            getEncoders(encB, encA);
+            getEncoders(encA, encB);
             
             odom.update(encA, encB, dT);
             odom.getPose(&poseX, &poseY, &poseA);
@@ -525,8 +539,8 @@ int main() {
                 wheelL.coast();
                 wheelR.coast();
             }
-
-            printf(FF" "FF" "FF" "FF" "FF" "FF" %d %d %02x\n", FV(cmdDrive), FV(cmdTurn), FV(targL), FV(targR), FV(velL), FV(velR), outL, outR, flags);
+            //printf(FF" "FF" "FF" "FF" "FF" "FF" %d %d %02x\n", FV(cmdDrive), FV(cmdTurn), FV(targL), FV(targR), FV(velL), FV(velR), outL, outR, flags);
+            //printf(FF" "FF" "FF" "FF"\n", FV(velL), FV(velR), outL, outR);
         }
 
         if (!proc) {
@@ -552,12 +566,14 @@ int main() {
             }
         }
 
-        #ifdef DEBUG
+        /*#ifdef DEBUG
             if (curMillis - lastStatus >= statusPeriod) {
                 lastStatus = curMillis; //Don't need this to be exactly on period
-                //printf("tV:"FF" tT:"FF"\n", FV(cmdDrive), FV(cmdTurn));
-                //printf("oL:%d oR:%d\n", outL, outR);
+                printf("tV:"FF" tT:"FF"\n", FV(cmdDrive), FV(cmdTurn));
+                printf("oL:%d oR:%d\n", outL, outR);
+
+                printf("%d %d\n", encA, encB);
             }
-        #endif
+        #endif*/
     }
 }

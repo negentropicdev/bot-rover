@@ -20,7 +20,7 @@ void printDec(float f) {
 
 void init() {
     initTimer();
-    initSerial(57600);
+    initSerial(115200);
 
     initEncoders();
     initMotors();

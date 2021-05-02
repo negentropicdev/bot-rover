@@ -14,12 +14,18 @@ AVRDUDE_PORT= /dev/ttyUSB0
 #AVRDUDE_BAUD 3750000
 
 ### C232HM pinout
-# SCK  Orange
-# MOSI Yellow
-# MISO Green
-# RST  Brown
-# VCC  Red
-# GND  Black
+# 1 SCK  Orange
+# 2 MOSI Yellow
+# 3 MISO Green
+# 4 RST  Brown
+# 5 VCC  Red
+# 6 GND  Black
+
+# [ 5  2  6 ]
+# [ 3  1  4 ]
+
+# [ RED YEL BLK ]
+# [ GRN ORG BRN ]
 
 #These flags override the normal flags and ensure a properly compile AVR hex
 CXXFLAGS= -g -Os -Wall -fno-exceptions -ffunction-sections -fdata-sections -MMD -mmcu=$(AVR_MCU) -D F_CPU=$(AVR_FCPU)

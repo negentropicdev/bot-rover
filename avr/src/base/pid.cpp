@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <math.h>
 
-//#define DEBUG_PID
+#define DEBUG_PID
 
 #ifdef DEBUG_PID
     #include <stdio.h>
@@ -18,6 +18,7 @@ PID::PID(float Rp, float Ti, float Td, float min, float max, float dT) {
     _max = max;
     _dT = dT;
     _reset = true;
+    _Ff = 0;
 }
 
 float PID::run(const float &pv, const float &setpoint, const bool reset, char l) {
@@ -41,29 +42,47 @@ float PID::run(const float &pv, const float &setpoint, const bool reset, char l)
     _reset = false;
 
     #ifdef DEBUG_PID
+        putchar(' ');
         putchar(r ? 'r' : ' ');
+    #endif
+
+    _outF = setpoint * _Ff;
+    float output = _outF;
+
+    #ifdef DEBUG_PID
+        printf(" F:");
+        printDec(_outF);
     #endif
     
     //Calc P
     bool inRange = true;
 
-    float normalizedP = error / _Rp;
-    if (normalizedP > 1) {
-        normalizedP = 1;
-        inRange = false;
-    } else if (normalizedP < -1) {
-        normalizedP = -1;
-        inRange = false;
-    }
+    float limit = 1;//_max / _Rp;
 
     #ifdef DEBUG_PID
-        printf(" n:");
-        printDec(normalizedP);
+        printf(" l:");
+        printDec(limit);
     #endif
 
-    _outP = normalizedP * _max;
+    if (_Rp != 0) {
+        float normalizedP = error / _Rp;
+        if (normalizedP > limit) {
+            normalizedP = limit;
+            inRange = false;
+        } else if (normalizedP < -limit) {
+            normalizedP = -limit;
+            inRange = false;
+        }
 
-    float output = _outP;
+        #ifdef DEBUG_PID
+            printf(" n:");
+            printDec(normalizedP);
+        #endif
+
+        _outP = normalizedP * _max;
+
+        output += _outP;
+    }
 
     #ifdef DEBUG_PID
         printf(" P:");
@@ -75,11 +94,8 @@ float PID::run(const float &pv, const float &setpoint, const bool reset, char l)
         float i = (_dT / (_Ti)) * (_Rp) * error;
         _sum += i;
 
-        float maxSum = _max - _outP;
-        float minSum = _min - _outP;
-
-        if (_sum > maxSum) _sum = maxSum;
-        else if (_sum < minSum) _sum = minSum;
+        if (_sum + output > _max) _sum = output - _max;
+        else if (_sum + output < _min) _sum = output - _min;
 
         output += _sum;
     } else {
@@ -121,6 +137,10 @@ float PID::run(const float &pv, const float &setpoint, const bool reset, char l)
     return output;
 }
 
+void PID::setF(float f) {
+    _Ff = f;
+}
+
 void PID::setP(float p) {
     _Rp = p;
 }
@@ -135,4 +155,20 @@ void PID::setD(float d) {
 
 void PID::reset() {
     _reset = true;
+}
+
+float PID::getOutF() {
+    return _outF;
+}
+
+float PID::getOutP() {
+    return _outP;
+}
+
+float PID::getOutI() {
+    return _outI;
+}
+
+float PID::getOutD() {
+    return _outD;
 }

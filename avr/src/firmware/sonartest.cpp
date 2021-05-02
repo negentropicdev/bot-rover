@@ -29,17 +29,16 @@ int main() {
 
     unsigned long dhtPeriod = 5000;
     unsigned long lastDht = curMillis;
+    unsigned long sinceDht;
 
     unsigned long rangePeriod = 100;
     unsigned long lastRange = curMillis - 5;
-
-    bool d = true;
-    bool r = true;
+    unsigned long sinceRange;
 
     while(1) {
         curMillis = millis();
 
-        if (curMillis - lastDht >= dhtPeriod && d) {
+        if (curMillis - lastDht >= dhtPeriod) {
             lastDht += dhtPeriod;
             
             int8_t res = dht.read();
@@ -61,7 +60,8 @@ int main() {
             }
         }
 
-        if (curMillis - lastRange >= rangePeriod && r) {
+        sinceRange = curMillis - lastRange;
+        if (sinceRange >= rangePeriod) {
             lastRange += rangePeriod;
 
             unsigned long echo = sonar.range();
@@ -70,5 +70,8 @@ int main() {
             printDec(dist);
             printf("cm\n");
         }
+
+        if (sinceRange > 200)
+            printf("%lu\n", sinceRange);
     }
 }
