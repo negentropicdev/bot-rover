@@ -1,5 +1,5 @@
-#include "avr_serial.h"
-#include "circularbuffer.h"
+#include "system/avr_serial.h"
+#include "system/circularbuffer.h"
 
 #include <avr/io.h>
 #include <avr/interrupt.h>

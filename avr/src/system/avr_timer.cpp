@@ -1,4 +1,4 @@
-#include "avr_timer.h"
+#include "system/avr_timer.h"
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -61,11 +61,22 @@ unsigned long micros() {
 
 void delay_us(unsigned int us)
 {
+    // calling avrlib's delay_us() function with low values (e.g. 1 or
+    // 2 microseconds) gives delays longer than desired.
+    //delay_us(us);
+    // for the 16 MHz clock on most Arduino boards
+
     // for a one-microsecond delay, simply return.  the overhead
     // of the function call yields a delay of approximately 1 1/8 us.
-    if (us <= 4)
-        return;
-    
+    if (--us == 0)
+            return;
+
+    // the following loop takes a quarter of a microsecond (4 cycles)
+    // per iteration, so execute it four times for each microsecond of
+    // delay requested.
+    us <<= 2;
+
+    // account for the time taken in the preceeding commands.
     us -= 2;
 
     // busy wait

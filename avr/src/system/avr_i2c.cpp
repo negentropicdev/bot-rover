@@ -1,4 +1,4 @@
-#include "avr_i2c.h"
+#include "system/avr_i2c.h"
 
 //#define DEBUG_I2C_SER
 
@@ -22,35 +22,39 @@ ISR(TWI_vect) {
 void start() {
     //set start and clear interrupt flag to resume
     TWCR = (1<<TWINT) | (1<<TWSTA) | (1<<TWEN) | (1<<TWIE);
+    PORTB &= ~(1<<5);
 }
 
 void next(bool ack) {
     //optionally set ack and clear interrupt flag to resume
     TWCR = (1<<TWINT) | (1<<TWIE) | (1<<TWEN) | ((ack ? 1 : 0)<<TWEA);
+    PORTB &= ~(1<<5);
 }
 
 void stop() {
     //set stop and clear interrupt flag to resume
-    TWCR |= (1<<TWINT) | (1<<TWSTO) | (1<<TWEN) | (1<<TWIE);
-}
-
-void reset() {
-    TWCR |= (1<<TWINT) | (1<<TWIE);
+    TWCR = (1<<TWINT) | (1<<TWSTO) | (1<<TWEN) | (1<<TWIE);
+    PORTB &= ~(1<<5);
 }
 
 void AVR_I2C::_interrupt() {
+    PORTB |= (1<<5);
     _status = TW_STATUS;
 
     #ifdef DEBUG_I2C_SER
-        putchar('#');
+        //putchar('i');
+        //printf("%02x", _status);
     #endif
 
     //shortcut switch to respond to stops ASAP to alleviate bus issues.
     if (_status == TW_SR_STOP) {
         #ifdef DEBUG_I2C_SER
-            printf(".\n");
+            //printf(".\n");
+            putchar('.');
+            putchar(10);
         #endif
-        TWCR = (1 << TWINT) | (1 << TWEA) | (1 << TWEN) | (1 << TWIE);
+        
+        next(true);
         return;
     }
 
@@ -60,7 +64,7 @@ void AVR_I2C::_interrupt() {
         //start condition transmitted
         case TW_START:
             #ifdef DEBUG_I2C_SER
-                putchar(12);
+                putchar(10);
                 putchar('S');
             #endif
 
@@ -129,7 +133,7 @@ void AVR_I2C::_interrupt() {
                 putchar('@');
             #endif
 
-            reset();
+            next(false);
             _master_cb(I2C_DATA_NACK);
             break;
 
@@ -139,7 +143,7 @@ void AVR_I2C::_interrupt() {
                 putchar('&');
             #endif
 
-            reset();
+            next(false);
             _master_cb(I2C_LOST_ARB);
             break;
 
@@ -157,7 +161,7 @@ void AVR_I2C::_interrupt() {
                 putchar('#');
             #endif
 
-            reset();
+            next(false);
             _master_cb(I2C_ADDR_NACK);
             break;
 
@@ -191,14 +195,11 @@ void AVR_I2C::_interrupt() {
             }
 
             #ifdef DEBUG_I2C_SER
-                printf(">%02x", TWDR);
+                putchar('>');
+                printf("%02x", TWDR);
             #endif
 
-            if (ack) {
-                TWCR = (1 << TWINT) | (1<< TWEA) | (1 << TWEN) | (1 << TWIE);
-            } else {
-                TWCR = (1 << TWINT) | (1 << TWEN) | (1 << TWIE);
-            }
+            next(ack);
             break;
 
         //arbitration lost in SLA+RW, SLA+R received, ACK returned
@@ -215,50 +216,51 @@ void AVR_I2C::_interrupt() {
             }
 
             #ifdef DEBUG_I2C_SER
-                printf(">%02x", TWDR);
+                putchar('>');
+                printf("%02x", TWDR);
             #endif
 
-            if (ack) {
-                TWCR = (1 << TWINT) | (1<< TWEA) | (1 << TWEN) | (1 << TWIE);
-            } else {
-                TWCR = (1 << TWINT) | (1 << TWEN) | (1 << TWIE);
-            }
+            next(ack);
             break;
 
         //data transmitted, NACK received
         case TW_ST_DATA_NACK:
             #ifdef DEBUG_I2C_SER
-                printf("!\n");
+                //printf("!\n");
+                putchar('-');
+                putchar(10);
             #endif
 
-            TWCR = (1 << TWINT) | (1 << TWEN) | (1 << TWIE) | (1 << TWEA);
+            next(true);
             break;
 
         //last data byte transmitted, ACK received
         case TW_ST_LAST_DATA:
             #ifdef DEBUG_I2C_SER
-                printf(">%02x.\n", *_data);
+                putchar('>');
+                printf("%02x.", *_data);
+                putchar(10);
             #endif
             
             //just re-enable the I2C engine to be ready for more slave ops.
             //#TODO: check for pending master op and send start
-            TWCR = (1 << TWINT) | (1 << TWIE) | (1 << TWEN) | (1 << TWEA);
+            next(true);
             break;
 
         //SLA+W received, ACK returned
         case TW_SR_SLA_ACK:
             #ifdef DEBUG_I2C_SER
-                printf("W");
+                putchar('W');
             #endif
             //mark whether expecting a register
             _slave_set_reg = _slave_mode == REGISTER;
 
             #ifdef DEBUG_I2C_SER
-                printf("%d", _slave_mode);
+                //printf("%d", _slave_mode);
             #endif
 
             //Continue bus ops
-            TWCR = (1 << TWINT) | (1 << TWIE) | (1 << TWEN) | (1 << TWEA);
+            next(true);
             break;
 
         //arbitration lost in SLA+RW, SLA+W received, ACK returned
@@ -281,6 +283,7 @@ void AVR_I2C::_interrupt() {
                 #endif
 
                 _slave_set_reg = false;
+
                 ack = _set_register_cb(TWDR);
             } else {
                 if (_slave_mode == REGISTER && _register_write_cb != 0) {
@@ -295,14 +298,11 @@ void AVR_I2C::_interrupt() {
             }
 
             #ifdef DEBUG_I2C_SER
+                putchar('<');
                 printf("%02x", TWDR);
             #endif
 
-            if (ack) {
-                TWCR = (1 << TWINT) | (1<< TWEA) | (1 << TWEN) | (1 << TWIE);
-            } else {
-                TWCR = (1 << TWINT) | (1 << TWEN) | (1 << TWIE);
-            }
+            next(ack);
             break;
 
         //data received, NACK returned
@@ -315,10 +315,12 @@ void AVR_I2C::_interrupt() {
             }
 
             #ifdef DEBUG_I2C_SER
-                printf("<%02x!", TWDR);
+                putchar('<');
+                printf("%02x", TWDR);
+                putchar('-');
             #endif
 
-            TWCR = (1 << TWINT) | (1<< TWEA) | (1 << TWEN) | (1 << TWIE);
+            next(true);
             break;
 
         //general call data received, ACK returned
@@ -340,6 +342,7 @@ void AVR_I2C::_interrupt() {
 
         //illegal start or stop condition
         case TW_BUS_ERROR:
+            next(_slave_mode != NONE);
             break;
     }
 }
@@ -422,7 +425,7 @@ void AVR_I2C::autoIncRegister(bool autoInc) {
 
 void AVR_I2C::begin() {
     //enable the I2C bus and enable interrupts
-    TWCR |= (1<<TWEN) | (1<<TWIE);
+    TWCR |= (1<<TWEN) | (1<<TWIE) | (1<<TWINT);
 }
 
 bool AVR_I2C::busy() {

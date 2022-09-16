@@ -1,14 +1,6 @@
-#include "hcsr04.h"
+#include "device/hcsr04.h"
 
-#include <avr/interrupt.h>
-
-#include "../system/avr_timer.h"
-
-#define DEBUG
-
-#ifdef DEBUG
-    #include <stdio.h>
-#endif
+#include "system/avr_timer.h"
 
 HCSR04::HCSR04(const SonarDef &def) {
     _port = def.port;
@@ -25,14 +17,6 @@ HCSR04::HCSR04(volatile uint8_t *port, volatile uint8_t *ddr, volatile uint8_t *
 }
 
 unsigned long HCSR04::range() {
-    cli();
-    unsigned long iter = _range();
-    sei();
-
-    return iter;
-}
-
-unsigned long HCSR04::_range() {
     volatile unsigned long d = 0;
     volatile unsigned long c = 0;
 

@@ -18,8 +18,6 @@ public:
     unsigned long range();
 
 private:
-    unsigned long _range();
-
     volatile uint8_t *_port;
     volatile uint8_t *_ddr;
     volatile uint8_t *_pin;

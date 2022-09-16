@@ -1,12 +1,12 @@
-#include "wheel.h"
+#include "base/wheel.h"
 
 #include <avr/io.h>
 #include <stdlib.h>
 
 #include <stdio.h>
 
-Wheel wheelL(&PORTC, &PORTC, 0, 1, &OCR1A, &DDRC, &DDRC);
-Wheel wheelR(&PORTC, &PORTC, 2, 3, &OCR1B, &DDRC, &DDRC);
+Wheel wheelL(&PORTC, &PORTC, 2, 3, &OCR1B, &DDRC, &DDRC);
+Wheel wheelR(&PORTC, &PORTC, 0, 1, &OCR1A, &DDRC, &DDRC);
 
 void initMotors() {
     //setup timer1 for motor pwm output

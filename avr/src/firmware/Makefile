@@ -2,7 +2,7 @@
 
 all: rover.hex sonar.hex
 
-rover.hex: system.a base.a
+rover.hex: avr_i2c_registers.o system.a base.a
 
 i2ctest.hex: system.a
 
@@ -16,7 +16,7 @@ joyrover.hex: system.a base.a
 
 pidtest.hex: system.a base.a
 
-sonar.hex: system.a dht.o hcsr04.o
+sonar.hex: avr_i2c_registers.o system.a dht.o hcsr04.o
 
 sonartest.hex: system.a hcsr04.o dht.o
 

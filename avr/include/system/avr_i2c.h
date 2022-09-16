@@ -3,22 +3,6 @@
 
 #include <stdint.h>
 
-typedef enum {FLOAT, U16, I16, U8} I2CRegisterType;
-
-typedef union {
-    float f32;
-    uint16_t u16;
-    int16_t i16;
-    uint8_t u8;
-    uint8_t buf[4];
-} I2CBuffer;
-
-typedef struct {
-    I2CRegisterType type;
-    bool update;
-    I2CBuffer data;
-} I2CRegister;
-
 /**
  * Signals back to app that a master operation has completed.
  * This will be the case whether it was a read or a write
@@ -118,7 +102,7 @@ public:
     void initMaster(unsigned long rate, i2c_master_complete cb);
 
     /** Initializes the instance as a slave to respond to reads and writes
-     * from other masters.
+     * from other masters in register mode.
      * 
      * @param address The 7 bit address this device will respond to. This
      *  should be specified in the lower 7 bits (less than 128, 0x80).
@@ -135,7 +119,7 @@ public:
     void initSlave(uint8_t address, i2c_set_register sr, i2c_register_read rcb, i2c_register_write wcb, bool genCall);
 
     /** Initializes the instance as a slave to respond to reads and writes
-     * from other masters.
+     * from other masters in raw mode.
      * 
      * @param address The 7 bit address this device will respond to. This
      *  should be specified in the lower 7 bits (less than 128, 0x80).
@@ -193,6 +177,8 @@ private:
     void sendRegister();
     void sendData();
     void readData();
+
+
 
     /** Stores current state and prevents operation collision */
     State _state;

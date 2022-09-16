@@ -10,8 +10,8 @@ AVR_FCPU= 16000000ul
 AVRDUDE_PART= m328p
 AVRDUDE_PRG= C232HM
 AVRDUDE_PORT= /dev/ttyUSB0
-#AVRDUDE_BITC= 10
-#AVRDUDE_BAUD 3750000
+AVRDUDE_BITC= 1
+AVRDUDE_BAUD= 1000000
 
 ### C232HM pinout
 # 1 SCK  Orange
@@ -21,15 +21,15 @@ AVRDUDE_PORT= /dev/ttyUSB0
 # 5 VCC  Red
 # 6 GND  Black
 
-# [ 5  2  6 ]
-# [ 3  1  4 ]
+#  [ 5  2  6 ]
+# >[ 3  1  4 ]
 
-# [ RED YEL BLK ]
-# [ GRN ORG BRN ]
+#  [ RED YEL BLK ]
+# >[ GRN ORG BRN ]
 
 #These flags override the normal flags and ensure a properly compile AVR hex
-CXXFLAGS= -g -Os -Wall -fno-exceptions -ffunction-sections -fdata-sections -MMD -mmcu=$(AVR_MCU) -D F_CPU=$(AVR_FCPU)
-CFLAGS= -g -Os -Wall -fno-exceptions -ffunction-sections -fdata-sections -MMD -mmcu=$(AVR_MCU) -D F_CPU=$(AVR_FCPU)
+CXXFLAGS= -g -Os -Wall -fno-exceptions -ffunction-sections -fdata-sections -mmcu=$(AVR_MCU) -D F_CPU=$(AVR_FCPU)
+CFLAGS= -g -Os -Wall -fno-exceptions -ffunction-sections -fdata-sections -mmcu=$(AVR_MCU) -D F_CPU=$(AVR_FCPU)
 LDFLAGS= -Os -Wl,--gc-sections,--relax -mmcu=$(AVR_MCU) -lm
 HEXFLAGS= -R .eeprom -O ihex
 
@@ -55,8 +55,19 @@ else
 	export avrdude_baud:= -b $(AVRDUDE_BAUD)
 endif
 
+#  Colors:
+#Black:   30
+#Red:     31
+#Green:   32
+#Yellow:  33
+#Blue:    34
+#Magenta: 35
+#Cyan:    36
+#White:   37
+#Reset:   0
+
 define hex
-	@echo "    HEX $@"
+	@echo "\e[0;35m    HEX\e[1;35m $@\e[0m"
 	$(quiet)  $(LD) -mmcu=$(AVR_MCU) -o $(BUILD_DIR)/$(subst .hex,.elf,$@) $(foreach file,$(call local,$^),$(BUILD_DIR)/$(notdir $(file)))
 	$(quiet)  $(HEX) $(BUILD_DIR)/$(subst .hex,.elf,$@) $(BUILD_DIR)/$@
 	@mkdir -p $(BIN_DIR)
@@ -64,7 +75,7 @@ define hex
 endef
 
 define avrdude
-	@echo "    UPLOAD $(notdir $^)"
+	@echo "\e[0;37m    UP\e[1;37m  $(notdir $^)\e[0m"
 	$(quiet) $(AVRDUDE) -P $(AVRDUDE_PORT) $(avrdude_bitc) $(avrdude_baud) -c $(AVRDUDE_PRG) -p $(AVRDUDE_PART) -U flash:w:$(BIN_DIR)/$(notdir $^)
 endef
 

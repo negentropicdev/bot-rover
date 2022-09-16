@@ -1,36 +1,11 @@
-#include "dht.h"
+#include "device/dht.h"
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
+#include "system/avr_timer.h"
+
 #define DHT_TIMEOUT (F_CPU/40000)
-
-void delayMicroseconds(unsigned int us)
-{
-    // calling avrlib's delay_us() function with low values (e.g. 1 or
-    // 2 microseconds) gives delays longer than desired.
-    //delay_us(us);
-    // for the 16 MHz clock on most Arduino boards
-
-    // for a one-microsecond delay, simply return.  the overhead
-    // of the function call yields a delay of approximately 1 1/8 us.
-    if (--us == 0)
-            return;
-
-    // the following loop takes a quarter of a microsecond (4 cycles)
-    // per iteration, so execute it four times for each microsecond of
-    // delay requested.
-    us <<= 2;
-
-    // account for the time taken in the preceeding commands.
-    us -= 2;
-
-    // busy wait
-    __asm__ __volatile__ (
-            "1: sbiw %0,1" "\n\t" // 2 cycles
-            "brne 1b" : "=w" (us) : "0" (us) // 2 cycles
-    );
-}
 
 DHT::DHT(volatile uint8_t *port, volatile uint8_t *ddr, volatile uint8_t *pin, uint8_t bit) {
     _port = port;
@@ -51,9 +26,9 @@ float DHT::getHumidity() {
 }
 
 int8_t DHT::read() {
-    cli();
+    //cli();
     int8_t res = _read();
-    sei();
+    //sei();
 
     if (res != DHT_OK) {
         return res;
@@ -95,7 +70,7 @@ int8_t DHT::_read() {
     // REQUEST SAMPLE
     *_ddr |= _bitmask; //pinMode(pin, OUTPUT);
     *_port &= ~_bitmask; //digitalWrite(pin, LOW); // T-be
-    delayMicroseconds(1000UL);
+    delay_us(1000UL);
     // digitalWrite(pin, HIGH); // T-go
     *_ddr &= ~_bitmask; //pinMode(pin, INPUT);
 

@@ -7,23 +7,23 @@ export _common_mk_=1
 sl=$(patsubst %/,%,$1)
 up=$(call sl,$(dir $1))
 
-#srcroot:=$(call findsrcroot,$(CURDIR))
-findsrcroot=$(if $(wildcard $1/common.mk),$1,$(if $1,$(call findsrcroot,$(call up,$1)),))
+#projroot:=$(call findprojroot,$(CURDIR))
+findprojroot=$(if $(wildcard $1/common.mk),$1,$(if $1,$(call findprojroot,$(call up,$1)),))
 
 #find the root of the source tree
-srcroot:=$(call findsrcroot,$(CURDIR))
+projroot:=$(call findprojroot,$(CURDIR))
 
-$(if $(strip $(srcroot)),,$(error Unable to find root of source tree! Make sure you invoke make from within the source tree and common.mk is at the root))
+$(if $(strip $(projroot)),,$(error Unable to find root of source tree! Make sure you invoke make from within the source tree and common.mk is at the root))
 
-include $(srcroot)/flags.mk
-include $(srcroot)/commands.mk
-include $(srcroot)/dirs.mk
-include $(srcroot)/rules.mk
+include $(projroot)/flags.mk
+include $(projroot)/commands.mk
+include $(projroot)/dirs.mk
+include $(projroot)/rules.mk
 
 ifndef NO_AVR
 
 #uncomment the following include to add support for AVR projects.
-include $(srcroot)/avr.mk
+include $(projroot)/avr.mk
 
 endif
 
